@@ -3,12 +3,16 @@
 Launch a running session.
 """
 
+# Python imports
+import os
+
 # DeepPhysX related imports
 from DeepPhysX_Core.Pipelines.BaseRunner import BaseRunner
 from DeepPhysX_Core.Environment.BaseEnvironmentConfig import BaseEnvironmentConfig
+from DeepPhysX_Core.Dataset.BaseDatasetConfig import BaseDatasetConfig
 
 # Tutorial related imports
-from T3_configuration import BanetEnvironment, net_config, dataset_config
+from T3_configuration import BanetEnvironment, net_config
 
 
 def launch_prediction():
@@ -19,12 +23,21 @@ def launch_prediction():
                                        use_dataset_in_environment=False,
                                        param_dict={'increment': 1},
                                        as_tcp_ip_client=False)
+
+    # Adapt the Dataset config with the existing dataset directory
+    dataset_config = BaseDatasetConfig(dataset_dir=os.path.join(os.getcwd(), 'sessions/test'),
+                                       partition_size=3,
+                                       shuffle_dataset=False)
+
     # Create the Pipeline
-    pipeline = BaseRunner(session_dir='sessions/tutorial_online_training',
+    pipeline = BaseRunner(session_name='sessions/banet_training',
                           environment_config=env_config,
                           dataset_config=dataset_config,
                           network_config=net_config,
-                          nb_steps=20)
+                          nb_steps=1,
+                          record_inputs=True,
+                          record_outputs=True)
+
     # Launch the Pipeline
     pipeline.execute()
 

@@ -21,8 +21,8 @@ def getDataArray( grid_vtk, field_name ):
 
 
 # Hardcoded data paths and parameters
-path_data = '/media/andrea/data/post_doc_verona/banet/data_set_inference_preop+displ'
-path_to_save = 'sessions/banet_data/dataset'
+path_data = '/media/andrea/data/post_doc_verona/banet/small_ds'
+path_to_save = 'sessions/test/dataset'
 
 vts_filename = 'voxelized_displacement.vts'
 nb_channels_in = 4
@@ -63,6 +63,16 @@ for sample in os.listdir(path_data):
         output = getDataArray(grid_vtk, 'stiffness').reshape((nb_points_in_grid, 1))
         # print("Output data shape is {}.".format(output.shape))
         output_arr = np.concatenate((output_arr, np.array([output])))
+
+# Compute mean and std for further normalization
+mean_inputs = input_arr.flatten().mean()
+std_inputs = input_arr.flatten().std()
+mean_outputs = output_arr.flatten().mean()
+std_outputs = output_arr.flatten().std()
+
+print("Inputs = {} +- {}".format(mean_inputs, std_inputs))
+print("Outputs = {} +- {}".format(mean_outputs, std_outputs))
+
 
 # Save numpy arrays
 np.save(path_to_save + '/' + vts_filename[:-4] + '_training_IN_0.npy', input_arr)
