@@ -13,9 +13,10 @@ from DeepPhysX_Core.Dataset.BaseDatasetConfig import BaseDatasetConfig
 from DeepPhysX_PyTorch.UNet.UNetConfig import UNetConfig
 
 
-# Tutorial related imports
+# Session imports
 from T1_environment import BanetEnvironment
 from T2_network import BanetNetwork, BanetOptimization
+from loss import BCELogits_Dice_Loss
 
 
 # Create the Environment config
@@ -30,7 +31,7 @@ env_config = BaseEnvironmentConfig(environment_class=BanetEnvironment,      # Th
                                    port=10001)
 
 # Create the Network config
-net_config = UNetConfig(loss=torch.nn.MSELoss,
+net_config = UNetConfig(loss=BCELogits_Dice_Loss,
                         lr=0.001,
                         optimizer=torch.optim.Adam,
                         network_name='BanetNetwork',
