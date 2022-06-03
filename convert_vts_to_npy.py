@@ -21,14 +21,15 @@ def getDataArray( grid_vtk, field_name ):
 
 
 # Hardcoded data paths and parameters
-path_data = '/media/andrea/data/post_doc_verona/banet/small_ds'
-path_to_save = 'sessions/test/dataset'
+path_data = '/media/andrea/data/post_doc_verona/banet/multiple_frames'#/media/andrea/data/post_doc_verona/banet/data_set_inference_preop+displ'
+path_to_save = 'sessions/multiple_frames_1_ch/dataset'
 
-vts_filename = 'voxelized_displacement.vts'
-nb_channels_in = 4
+# vts_filename = 'voxelized_displacement.vts'
+# nb_channels_in = 4
 
-# vts_filename = 'voxelized.vts'
-# nb_channels_in = 1
+vts_filename = 'voxelized.vts'
+nb_channels_in = 1
+num_frames_to_export = 3
 
 nb_channels_out = 1
 nb_points_in_grid = 23328
@@ -39,7 +40,7 @@ output_data_size = (nb_points_in_grid, nb_channels_out)  # 27x27x32x1
 # Create directories and arrays
 if not os.path.isdir(path_to_save):
     os.makedirs(path_to_save)
-input_arr = np.empty((0, input_data_size[0], input_data_size[1]))
+input_arr = np.empty((0, input_data_size[0], num_frames_to_export))
 output_arr = np.empty((0, output_data_size[0], output_data_size[1]))
 
 # Read all the sample folders
@@ -47,18 +48,22 @@ for sample in os.listdir(path_data):
     vts_file = path_data + '/' + sample + '/' + vts_filename
     # If vts file exists, get inputs and outputs
     if os.path.exists(vts_file):
+        print("vts_file", vts_file)
         # Open sample file
         grid_vtk = readGrid(vts_file)
         # print(grid_vtk.GetPointData())
         # Store input numpy arrays
         if nb_channels_in == 1:
-            input = getDataArray(grid_vtk, 'intraoperativeSurface0').reshape((nb_points_in_grid, 1))
+            frames = np.empty((input_data_size[0], 0))
+            for num_frame in range(num_frames_to_export):
+                data = getDataArray(grid_vtk, 'intraoperativeSurface' + str(num_frame)).reshape((nb_points_in_grid, 1))
+                frames = np.concatenate((frames, data), axis=1)
         elif nb_channels_in == 4:
             u = getDataArray(grid_vtk, 'displacement')
             sdf = getDataArray(grid_vtk, 'preoperativeSurface').reshape((nb_points_in_grid, 1))
             input = np.concatenate((u, sdf), axis=1)
         # print("Input data shape is {}.".format(input.shape))
-        input_arr = np.concatenate((input_arr, np.array([input])))
+        input_arr = np.concatenate((input_arr, np.array([frames])))
         # Store output numpy arrays
         output = getDataArray(grid_vtk, 'stiffness').reshape((nb_points_in_grid, 1))
         # print("Output data shape is {}.".format(output.shape))
