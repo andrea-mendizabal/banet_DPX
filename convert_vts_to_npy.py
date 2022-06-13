@@ -21,27 +21,28 @@ def getDataArray( grid_vtk, field_name ):
 
 
 # Hardcoded data paths and parameters
-path_data = '/media/andrea/data/post_doc_verona/banet/multiple_frames'#/media/andrea/data/post_doc_verona/banet/data_set_inference_preop+displ'
-path_to_save = 'sessions/multiple_frames_1_ch/dataset'
+path_data = '/media/andrea/data/post_doc_verona/banet/testing_data_multiple_frames'
 
-# vts_filename = 'voxelized_displacement.vts'
-# nb_channels_in = 4
+path_to_save = 'sessions/testing_data_4_ch_verify/dataset'
+# path_to_save = 'sessions/testing_data_3_frames_1_ch/dataset'
 
-vts_filename = 'voxelized.vts'
-nb_channels_in = 1
-num_frames_to_export = 3
+vts_filename = 'voxelized_displacement.vts'
+nb_channels_in = 4
 
+# vts_filename = 'voxelized.vts'
+# nb_channels_in = 1
+# nb_channels_in = 3
+
+max_num_frames = 3
 nb_channels_out = 1
-nb_points_in_grid = 23328
-input_data_size = (nb_points_in_grid, nb_channels_in)  # 27x27x32x4
-output_data_size = (nb_points_in_grid, nb_channels_out)  # 27x27x32x1
+nb_points_in_grid = 23328  # 27x27x32
 
 
 # Create directories and arrays
 if not os.path.isdir(path_to_save):
     os.makedirs(path_to_save)
-input_arr = np.empty((0, input_data_size[0], num_frames_to_export))
-output_arr = np.empty((0, output_data_size[0], output_data_size[1]))
+input_arr = np.empty((0, nb_points_in_grid, nb_channels_in))
+output_arr = np.empty((0, nb_points_in_grid, nb_channels_out))
 
 # Read all the sample folders
 for sample in os.listdir(path_data):
@@ -51,22 +52,24 @@ for sample in os.listdir(path_data):
         print("vts_file", vts_file)
         # Open sample file
         grid_vtk = readGrid(vts_file)
-        # print(grid_vtk.GetPointData())
+
         # Store input numpy arrays
-        if nb_channels_in == 1:
-            frames = np.empty((input_data_size[0], 0))
-            for num_frame in range(num_frames_to_export):
+        if nb_channels_in == 1 or nb_channels_in == 3:
+            input = np.empty((nb_points_in_grid, 0))
+            for num_frame in range(nb_channels_in):
+                # If there is only one frame to export, export maximal deformation
+                if nb_channels_in == 1:
+                    num_frame = max_num_frames - 1
                 data = getDataArray(grid_vtk, 'intraoperativeSurface' + str(num_frame)).reshape((nb_points_in_grid, 1))
-                frames = np.concatenate((frames, data), axis=1)
+                input = np.concatenate((input, data), axis=1)
         elif nb_channels_in == 4:
             u = getDataArray(grid_vtk, 'displacement')
             sdf = getDataArray(grid_vtk, 'preoperativeSurface').reshape((nb_points_in_grid, 1))
             input = np.concatenate((u, sdf), axis=1)
-        # print("Input data shape is {}.".format(input.shape))
-        input_arr = np.concatenate((input_arr, np.array([frames])))
+        input_arr = np.concatenate((input_arr, np.array([input])))
+
         # Store output numpy arrays
         output = getDataArray(grid_vtk, 'stiffness').reshape((nb_points_in_grid, 1))
-        # print("Output data shape is {}.".format(output.shape))
         output_arr = np.concatenate((output_arr, np.array([output])))
 
 # Compute mean and std for further normalization
@@ -74,16 +77,12 @@ mean_inputs = input_arr.flatten().mean()
 std_inputs = input_arr.flatten().std()
 mean_outputs = output_arr.flatten().mean()
 std_outputs = output_arr.flatten().std()
-
 print("Inputs = {} +- {}".format(mean_inputs, std_inputs))
 print("Outputs = {} +- {}".format(mean_outputs, std_outputs))
-
 
 # Save numpy arrays
 np.save(path_to_save + '/' + vts_filename[:-4] + '_training_IN_0.npy', input_arr)
 np.save(path_to_save + '/' + vts_filename[:-4] + '_training_OUT_0.npy', output_arr)
-# print("Input data shape is {}.".format(input.shape))
-# print("Output data shape is {}.".format(output.shape))
 print("There are {} samples in total.".format(input_arr.shape[0]))
 
 
