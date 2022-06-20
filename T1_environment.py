@@ -8,6 +8,11 @@ from numpy import array
 import numpy as np
 from vtk import *
 import os
+import torch
+
+# Session related imports
+from loss import BCELogits_Dice_Loss
+from eval_metrics import DiceCoefficient, DiceCoefficientSquared, MeanIoU, TPR, MHD
 
 # DeepPhysX related imports
 from DeepPhysX_Core.Environment.BaseEnvironment import BaseEnvironment
@@ -34,11 +39,21 @@ class BanetEnvironment(BaseEnvironment):
 
         self.nb_step = 0
         self.increment = 0
-        self.nb_preds = 20  # Same as nb_steps in BaseRunner
-        self.gridSize = [27, 27, 32]
-        self.size = [0.25312511567026375, 0.25312511567026375, 0.30000013709068296] # should be the length of the box and not its resolution
-        self.nb_points_in_grid = self.gridSize[0]*self.gridSize[1]*self.gridSize[2]  # 23328
+        # self.gridResolution = [27, 27, 32]
+        self.gridResolution = [31, 32, 26]
+        self.size = [0.29056687112897633, 0.2999399960041046, 0.243701246753335]
+        # self.size = [0.25312511567026375, 0.25312511567026375, 0.30000013709068296] # should be the length of the box and not its resolution
+        self.nb_points_in_grid = self.gridResolution[0]*self.gridResolution[1]*self.gridResolution[2]  # 23328
         self.nb_channels_in = 4
+
+        # Evaluation metrics
+        self.bce_loss_total = []
+        self.pred_time      = []
+        self.dice_test      = []
+        self.dicesq_test    = []
+        self.miou_test      = []
+        self.inters_test    = []
+        self.mhd_test       = []
 
     """
     INITIALIZING ENVIRONMENT - Methods will be automatically called it this order:
@@ -87,32 +102,44 @@ class BanetEnvironment(BaseEnvironment):
 
     # MANDATORY
     async def step(self):
+        # ONLY CALLED IN PREDICTION ;)
         # Sending training data read from dataset
         self.set_training_data(self.sample_in, self.sample_out)
 
         # Store prediction
         prediction = self.get_prediction(self.sample_in)
+
+        # Apply sigmoid to prediction to have values between 0 and 1
+        prediction = torch.sigmoid(torch.tensor(prediction))
+
+        # Binarize the prediction : values bigger than a threshold are set to one, others to zero
+        # for i in range(prediction.shape[0]):
+        #     if prediction[i] > 0.5:
+        #         prediction[i] = 1
+        #     else:
+        #         prediction[i] = 0
         self.store_prediction_to_vts(prediction)
         # self.set_additional_dataset('prediction', prediction)
+        self.compute_metrics(prediction)
 
         self.nb_step += self.increment
 
     def store_prediction_to_vts(self, prediction):
         # Create vtk grid
         grid = vtkStructuredGrid()
-        grid.SetDimensions((self.gridSize[0], self.gridSize[1], self.gridSize[2]))
+        grid.SetDimensions((self.gridResolution[0], self.gridResolution[1], self.gridResolution[2]))
         points = vtkPoints()
         points.SetNumberOfPoints(self.nb_points_in_grid)
         pID = 0
         start_x = -self.size[0] / 2
         start_y = -self.size[1] / 2
         start_z = -self.size[2] / 2
-        d_x = self.size[0] / (self.gridSize[0] - 1)
-        d_y = self.size[1] / (self.gridSize[1] - 1)
-        d_z = self.size[2] / (self.gridSize[2] - 1)
-        for k in range(0, self.gridSize[2]):
-            for j in range(0, self.gridSize[1]):
-                for i in range(0, self.gridSize[0]):
+        d_x = self.size[0] / (self.gridResolution[0] - 1)
+        d_y = self.size[1] / (self.gridResolution[1] - 1)
+        d_z = self.size[2] / (self.gridResolution[2] - 1)
+        for k in range(0, self.gridResolution[2]):
+            for j in range(0, self.gridResolution[1]):
+                for i in range(0, self.gridResolution[0]):
                     x = start_x + d_x * i
                     y = start_y + d_y * j
                     z = start_z + d_z * k
@@ -121,9 +148,7 @@ class BanetEnvironment(BaseEnvironment):
         grid.SetPoints(points)
 
         # Save the input to a vts file
-        if self.nb_channels_in == 1:
-            pass
-        elif self.nb_channels_in == 4:
+        if self.nb_channels_in == 4:
             # Displacement of visible nodes
             displacement = vtkFloatArray()
             displacement.SetName("displacement")
@@ -141,6 +166,19 @@ class BanetEnvironment(BaseEnvironment):
             for i in range(self.nb_points_in_grid):
                 preopSurf.SetTuple1(i, self.sample_in[i][3])
             grid.GetPointData().AddArray(preopSurf)
+
+        else:
+            # Multiple or single number of frames
+            for j in range(self.nb_channels_in):
+                # Intraoperative surfaces
+                intraopSurf = vtkFloatArray()
+                intraopSurf.SetName("intraopSurf" + str(j))
+                intraopSurf.SetNumberOfComponents(1)
+                intraopSurf.SetNumberOfTuples(self.nb_points_in_grid)
+                for i in range(self.nb_points_in_grid):
+                    intraopSurf.SetTuple1(i, self.sample_in[i][0 + j])
+                grid.GetPointData().AddArray(intraopSurf)
+
 
         # Save the prediction to a vts file
         stiffness = vtkFloatArray()
@@ -160,6 +198,37 @@ class BanetEnvironment(BaseEnvironment):
         writer.SetFileName(filepath)
         writer.SetInputData(grid)
         writer.Update()
+
+    def compute_metrics(self, pred):
+        gt = torch.tensor(self.sample_out)
+        pred = torch.tensor(pred).reshape(gt.shape)
+        # gt = torch.sigmoid(gt)
+
+        dsc_bce_loss = BCELogits_Dice_Loss()
+        dice = DiceCoefficient()
+        dicesq = DiceCoefficientSquared()
+        # miou = MeanIoU()
+        tpr = TPR()
+        # mhd = MHD()
+
+        loss = dsc_bce_loss(pred, gt)
+        self.bce_loss_total.append(loss.item())
+
+        # pred = torch.sigmoid(pred)
+
+        self.dice_test.append(dice(pred, gt))
+        self.dicesq_test.append(dicesq(pred, gt))
+        # self.miou_test.append(miou(pred, gt))
+        self.inters_test.append(tpr(pred, gt))
+        # self.mhd_test.append(mhd(pred, gt))
+
+        print("STATS OVER {} SAMPLES: ".format(self.nb_step))
+        print(f"Final loss on test dataset: {np.mean(self.bce_loss_total):.8f} +- Std dev: {np.std(self.bce_loss_total):.8f} (Max error: {np.amax(self.bce_loss_total):.8f})")
+        print(f"Final DICE on test dataset: {np.mean(self.dice_test):.8f} +- Std dev: {np.std(self.dice_test):.8f}")
+        print(f"Final avg DICESQ on test dataset: {np.mean(self.dicesq_test):.8f}")
+        # print(f"Final avg MIoU on test dataset: {np.mean(self.miou_test):.8f}")
+        print(f'Final avg intersection on test dataset: {np.mean(self.inters_test) * 100:.1f}')
+        # print(f"Final avg MHD on test dataset: {np.mean(self.mhd_test):.8f}")
 
     # Optional
     def check_sample(self, check_input=True, check_output=True):

@@ -25,18 +25,17 @@ def launch_prediction():
                                        as_tcp_ip_client=False)
 
     # Adapt the Dataset config with the existing dataset directory
-    dataset_config = BaseDatasetConfig(dataset_dir=os.path.join(os.getcwd(), 'sessions/test'),
+    dataset_config = BaseDatasetConfig(dataset_dir=os.path.join(os.getcwd(), 'sessions/liver_test_4ch/dataset'),
                                        partition_size=3,
-                                       shuffle_dataset=False)
+                                       shuffle_dataset=False,
+                                       normalize=True)
 
     # Create the Pipeline
-    pipeline = BaseRunner(session_name='sessions/banet_training',
+    pipeline = BaseRunner(session_name='sessions/banet_training_liver_test_4ch_1',
                           environment_config=env_config,
                           dataset_config=dataset_config,
                           network_config=net_config,
-                          nb_steps=1,
-                          record_inputs=True,
-                          record_outputs=True)
+                          nb_steps=10)
 
     # Launch the Pipeline
     pipeline.execute()

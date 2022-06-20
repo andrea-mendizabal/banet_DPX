@@ -21,21 +21,22 @@ def getDataArray( grid_vtk, field_name ):
 
 
 # Hardcoded data paths and parameters
-path_data = '/media/andrea/data/post_doc_verona/banet/testing_data_multiple_frames'
+path_data = '/media/andrea/data/post_doc_verona/banet/liver'
 
-path_to_save = 'sessions/testing_data_4_ch_verify/dataset'
+path_to_save = 'sessions/liver_test_1ch/dataset'
 # path_to_save = 'sessions/testing_data_3_frames_1_ch/dataset'
 
-vts_filename = 'voxelized_displacement.vts'
-nb_channels_in = 4
+# vts_filename = 'voxelized_displacement.vts'
+# nb_channels_in = 4
 
-# vts_filename = 'voxelized.vts'
-# nb_channels_in = 1
+vts_filename = 'voxelized.vts'
+nb_channels_in = 1
 # nb_channels_in = 3
 
 max_num_frames = 3
 nb_channels_out = 1
-nb_points_in_grid = 23328  # 27x27x32
+# nb_points_in_grid = 23328  # 27x27x32
+nb_points_in_grid = 25792  # 31x32x26
 
 
 # Create directories and arrays
