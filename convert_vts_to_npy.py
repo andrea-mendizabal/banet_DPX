@@ -26,16 +26,18 @@ path_data = '/media/andrea/data/post_doc_verona/banet/a_jeter'
 path_to_save = 'sessions/a_jeter/dataset'
 # path_to_save = 'sessions/testing_data_3_frames_1_ch/dataset'
 
-displacement = True
-vts_filename = 'voxelized_displacement_only.vts'
-nb_channels_in = 3
+# displacement = True
+# vts_filename = 'voxelized_displacement_only.vts'
+# nb_channels_in = 3
 # vts_filename = 'voxelized_displacement.vts'
 # nb_channels_in = 4
 
-# displacement = False
+displacement = False
 # vts_filename = 'voxelized.vts'
 # nb_channels_in = 1
 # nb_channels_in = 3
+vts_filename = 'voxelized_intraop_preop_surfs.vts'
+nb_channels_in = 2
 
 max_num_frames = 3
 nb_channels_out = 1
@@ -61,12 +63,17 @@ for sample in os.listdir(path_data):
         # Store input numpy arrays (several cases)
         if not displacement:
             input = np.empty((nb_points_in_grid, 0))
-            for num_frame in range(nb_channels_in):
-                # If there is only one frame to export, export maximal deformation
-                if nb_channels_in == 1:
-                    num_frame = max_num_frames - 1
-                data = getDataArray(grid_vtk, 'intraoperativeSurface' + str(num_frame)).reshape((nb_points_in_grid, 1))
-                input = np.concatenate((input, data), axis=1)
+            if nb_channels_in != 2:
+                for num_frame in range(nb_channels_in):
+                    # If there is only one frame to export, export maximal deformation
+                    if nb_channels_in == 1:
+                        num_frame = max_num_frames - 1
+                    data = getDataArray(grid_vtk, 'intraoperativeSurface' + str(num_frame)).reshape((nb_points_in_grid, 1))
+                    input = np.concatenate((input, data), axis=1)
+            else:
+                iop = getDataArray(grid_vtk, 'intraoperativeSurface' + str(max_num_frames - 1)).reshape((nb_points_in_grid, 1))
+                sdf = getDataArray(grid_vtk, 'preoperativeSurface').reshape((nb_points_in_grid, 1))
+                input = np.concatenate((iop, sdf), axis=1)
         else:  # Working with displacements
             if nb_channels_in == 4:
                 u = getDataArray(grid_vtk, 'displacement')
@@ -75,7 +82,7 @@ for sample in os.listdir(path_data):
             if nb_channels_in == 3:
                 u = getDataArray(grid_vtk, 'displacement')
                 input = u
-            input_arr = np.concatenate((input_arr, np.array([input])))
+        input_arr = np.concatenate((input_arr, np.array([input])))
 
         # Store output numpy arrays
         output = getDataArray(grid_vtk, 'stiffness').reshape((nb_points_in_grid, 1))
