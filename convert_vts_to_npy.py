@@ -24,7 +24,6 @@ def getDataArray( grid_vtk, field_name ):
 path_data = '/media/andrea/data/post_doc_verona/banet/a_jeter'
 
 path_to_save = 'sessions/a_jeter/dataset'
-# path_to_save = 'sessions/testing_data_3_frames_1_ch/dataset'
 
 # displacement = True
 # vts_filename = 'voxelized_displacement_only.vts'
@@ -33,13 +32,14 @@ path_to_save = 'sessions/a_jeter/dataset'
 # nb_channels_in = 4
 
 displacement = False
-# vts_filename = 'voxelized.vts'
+vts_filename = 'voxelized.vts'
 # nb_channels_in = 1
 # nb_channels_in = 3
-vts_filename = 'voxelized_intraop_preop_surfs.vts'
+# vts_filename = 'voxelized_intraop_preop_surfs.vts'
 nb_channels_in = 2
 
-max_num_frames = 3
+non_consecutive_defs = True
+max_num_frames = 2
 nb_channels_out = 1
 # nb_points_in_grid = 23328  # 27x27x32
 nb_points_in_grid = 25792  # 31x32x26
@@ -63,7 +63,7 @@ for sample in os.listdir(path_data):
         # Store input numpy arrays (several cases)
         if not displacement:
             input = np.empty((nb_points_in_grid, 0))
-            if nb_channels_in != 2:
+            if nb_channels_in != 2 or non_consecutive_defs:
                 for num_frame in range(nb_channels_in):
                     # If there is only one frame to export, export maximal deformation
                     if nb_channels_in == 1:
