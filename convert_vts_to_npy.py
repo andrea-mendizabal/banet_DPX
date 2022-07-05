@@ -21,9 +21,9 @@ def getDataArray( grid_vtk, field_name ):
 
 
 # Hardcoded data paths and parameters
-path_data = '/media/andrea/data/post_doc_verona/banet/a_jeter'
+path_data = '/media/andrea/data/post_doc_verona/banet/liver_test_data_two_non_consecutive_frames/subfolder'
 
-path_to_save = 'sessions/a_jeter/dataset'
+path_to_save = 'sessions/testing_data_liver_one_non_consecutive_frames_7100/dataset'
 
 # displacement = True
 # vts_filename = 'voxelized_displacement_only.vts'
@@ -33,13 +33,13 @@ path_to_save = 'sessions/a_jeter/dataset'
 
 displacement = False
 vts_filename = 'voxelized.vts'
-# nb_channels_in = 1
+nb_channels_in = 1
 # nb_channels_in = 3
 # vts_filename = 'voxelized_intraop_preop_surfs.vts'
-nb_channels_in = 2
+# nb_channels_in = 2
 
 non_consecutive_defs = True
-max_num_frames = 2
+max_num_frames = 1
 nb_channels_out = 1
 # nb_points_in_grid = 23328  # 27x27x32
 nb_points_in_grid = 25792  # 31x32x26
@@ -70,6 +70,7 @@ for sample in os.listdir(path_data):
                         num_frame = max_num_frames - 1
                     data = getDataArray(grid_vtk, 'intraoperativeSurface' + str(num_frame)).reshape((nb_points_in_grid, 1))
                     input = np.concatenate((input, data), axis=1)
+                    print("this case")
             else:
                 iop = getDataArray(grid_vtk, 'intraoperativeSurface' + str(max_num_frames - 1)).reshape((nb_points_in_grid, 1))
                 sdf = getDataArray(grid_vtk, 'preoperativeSurface').reshape((nb_points_in_grid, 1))
