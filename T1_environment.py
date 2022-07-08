@@ -9,6 +9,9 @@ import numpy as np
 from vtk import *
 import os
 import torch
+import vtk
+from vtk.util import numpy_support
+
 
 # Session related imports
 from loss import BCELogits_Dice_Loss
@@ -44,7 +47,7 @@ class BanetEnvironment(BaseEnvironment):
         self.size = [0.29056687112897633, 0.2999399960041046, 0.243701246753335]
         # self.size = [0.25312511567026375, 0.25312511567026375, 0.30000013709068296] # should be the length of the box and not its resolution
         self.nb_points_in_grid = self.gridResolution[0]*self.gridResolution[1]*self.gridResolution[2]  # 23328
-        self.nb_channels_in = 4
+        self.nb_channels_in = 1
 
         # Evaluation metrics
         self.bce_loss_total = []
@@ -199,10 +202,35 @@ class BanetEnvironment(BaseEnvironment):
         writer.SetInputData(grid)
         writer.Update()
 
+    def build_mask(self, filename=''):
+        # Read sample
+        reader = vtk.vtkXMLStructuredGridReader()
+        reader.SetFileName(filename)
+        reader.Update()
+
+        voxelized = reader.GetOutput()
+        data = voxelized.GetPointData()
+
+        preoperativeRaw = numpy_support.vtk_to_numpy(data.GetArray("preoperativeSurface"))
+        # preoperative_sdf = np.reshape(preoperativeRaw,
+        #                              (self.gridResolution[0], self.gridResolution[1], self.gridResolution[2], 1))
+        # preoperative_sdf = np.transpose(preoperative_sdf, (3, 0, 1, 2))
+        preoperative_sdf = np.reshape(preoperativeRaw, (self.gridResolution[0] * self.gridResolution[1] * self.gridResolution[2], 1))
+
+        # We assume that the grid is perfectly regular
+        max_mask_value = (self.size[0] / self.gridResolution[0]) * np.sqrt(3)
+        self.mask = (preoperative_sdf <= max_mask_value)
+        if not self.mask.any():
+            raise IOError("Sample {} contains no internal points (no valid signed distance function?)".format(filename))
+
     def compute_metrics(self, pred):
         gt = torch.tensor(self.sample_out)
         pred = torch.tensor(pred).reshape(gt.shape)
         # gt = torch.sigmoid(gt)
+
+        # Mask building (could be computed once for all as the geometry is constant)
+        self.build_mask(filename='/media/andrea/data/post_doc_verona/banet/liver/000000/voxelized_displacement.vts')
+        pred = pred * self.mask
 
         dsc_bce_loss = BCELogits_Dice_Loss()
         dice = DiceCoefficient()
@@ -223,11 +251,12 @@ class BanetEnvironment(BaseEnvironment):
         # self.mhd_test.append(mhd(pred, gt))
 
         print("STATS OVER {} SAMPLES: ".format(self.nb_step))
-        print(f"Final loss on test dataset: {np.mean(self.bce_loss_total):.8f} +- Std dev: {np.std(self.bce_loss_total):.8f} (Max error: {np.amax(self.bce_loss_total):.8f})")
-        print(f"Final DICE on test dataset: {np.mean(self.dice_test):.8f} +- Std dev: {np.std(self.dice_test):.8f}")
-        print(f"Final avg DICESQ on test dataset: {np.mean(self.dicesq_test):.8f}")
+        # print(f"Final loss on test dataset: {np.mean(self.bce_loss_total):.8f} +- Std dev: {np.std(self.bce_loss_total):.8f} (Max error: {np.amax(self.bce_loss_total):.8f})")
+        print(f"Average DICE on test dataset: {np.mean(self.dice_test):.8f} +- Std dev: {np.std(self.dice_test):.8f}")
+        print(f"Median DICE and 25th and 75th percentile: {np.median(self.dice_test):.8f} ({np.percentile(self.dice_test,25):.8f} - {np.percentile(self.dice_test, 75):.8f})")
+        # print(f"Final avg DICESQ on test dataset: {np.mean(self.dicesq_test):.8f}")
         # print(f"Final avg MIoU on test dataset: {np.mean(self.miou_test):.8f}")
-        print(f'Final avg intersection on test dataset: {np.mean(self.inters_test) * 100:.1f}')
+        # print(f'Final avg intersection on test dataset: {np.mean(self.inters_test) * 100:.1f}')
         # print(f"Final avg MHD on test dataset: {np.mean(self.mhd_test):.8f}")
 
     # Optional

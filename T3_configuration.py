@@ -17,6 +17,7 @@ from DeepPhysX_PyTorch.UNet.UNetConfig import UNetConfig
 from T1_environment import BanetEnvironment
 from T2_network import BanetNetwork, BanetOptimization
 from loss import BCELogits_Dice_Loss
+from PersonalizedOptimization import PersonalizedOptimization
 
 
 # Create the Environment config
@@ -32,13 +33,14 @@ env_config = BaseEnvironmentConfig(environment_class=BanetEnvironment,      # Th
 
 # Create the Network config
 net_config = UNetConfig(loss=BCELogits_Dice_Loss,
+                        optimization_class=PersonalizedOptimization,
                         lr=0.001,
                         optimizer=torch.optim.Adam,
                         network_name='BanetNetwork',
                         nb_dims=3,
                         input_size=[31, 32, 26],
                         # input_size=[27, 27, 32],
-                        nb_input_channels=4,
+                        nb_input_channels=1,
                         nb_first_layer_channels=64,
                         nb_output_channels=1,
                         nb_steps=3,
