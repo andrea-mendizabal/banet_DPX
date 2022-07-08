@@ -10,7 +10,7 @@ class PersonalizedOptimization(TorchOptimization):
 
     def __init__(self, config):
         TorchOptimization.__init__(self, config)
-        self.build_mask(filename='/media/andrea/data/post_doc_verona/banet/liver/000000/voxelized_displacement.vts',
+        self.build_mask(filename='data/liver/voxelized_displacement.vts',
                         gridResolution=[31, 32, 26],
                         size=[0.29056687112897633, 0.2999399960041046, 0.243701246753335])
 
