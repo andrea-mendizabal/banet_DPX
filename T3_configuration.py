@@ -33,7 +33,7 @@ env_config = BaseEnvironmentConfig(environment_class=BanetEnvironment,      # Th
 
 # Create the Network config
 net_config = UNetConfig(loss=BCELogits_Dice_Loss,
-                        optimization_class=PersonalizedOptimization,
+                        #optimization_class=PersonalizedOptimization,
                         lr=0.001,
                         optimizer=torch.optim.Adam,
                         network_name='BanetNetwork',
